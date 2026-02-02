@@ -1,51 +1,5 @@
 {
-  "name": "Whisker & Paws - Image Generator",
   "nodes": [
-    {
-      "parameters": {
-        "httpMethod": "POST",
-        "path": "generate-image",
-        "responseMode": "responseNode",
-        "options": {
-          "rawBody": false
-        }
-      },
-      "id": "webhook-trigger",
-      "name": "Webhook Trigger",
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2,
-      "position": [240, 300],
-      "webhookId": "generate-image-webhook"
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict"
-          },
-          "conditions": [
-            {
-              "id": "api-key-check",
-              "leftValue": "={{ $json.headers['x-api-key'] }}",
-              "rightValue": "whisker-2025",
-              "operator": {
-                "type": "string",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "if-auth",
-      "name": "Check API Key",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [460, 300]
-    },
     {
       "parameters": {
         "method": "POST",
@@ -63,20 +17,23 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"prompt\": \"{{ $json.body.prompt }}\",\n  \"image_size\": \"landscape_4_3\",\n  \"num_inference_steps\": 28,\n  \"guidance_scale\": 3.5,\n  \"num_images\": 1,\n  \"enable_safety_checker\": true\n}",
+        "jsonBody": "={\n  \"prompt\": \"{{ $json.body.prompt }}\",\n  \"image_size\": {\n    \"width\": {{ $json.body.width }},\n    \"height\": {{ $json.body.height }}\n  },\n  \"num_inference_steps\": 28,\n  \"guidance_scale\": 3.5,\n  \"num_images\": 1,\n  \"enable_safety_checker\": true\n}",
         "options": {
           "timeout": 120000
         }
       },
-      "id": "fal-request",
+      "id": "2e7eab05-be24-4e3b-9e92-707a5782c6c8",
       "name": "Call fal.ai",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [680, 200],
+      "position": [
+        -144,
+        528
+      ],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "FAL_CREDENTIAL_ID",
-          "name": "fal.ai API Key"
+          "id": "51vDUFkJLxab3yOz",
+          "name": "Header Fal.ai"
         }
       }
     },
@@ -84,11 +41,14 @@
       "parameters": {
         "jsCode": "// Extract the image URL from fal.ai response\nconst response = $input.first().json;\n\nlet imageUrl = null;\n\n// fal.ai returns images in different formats depending on the model\n// Common patterns: images[0].url, images[0], output.images[0].url, image.url\nif (response.images && response.images.length > 0) {\n  imageUrl = response.images[0].url || response.images[0];\n} else if (response.output && response.output.images && response.output.images.length > 0) {\n  imageUrl = response.output.images[0].url || response.output.images[0];\n} else if (response.image && response.image.url) {\n  imageUrl = response.image.url;\n} else if (response.image) {\n  imageUrl = response.image;\n} else if (response.url) {\n  imageUrl = response.url;\n}\n\nif (!imageUrl) {\n  throw new Error('Could not extract image URL from fal.ai response: ' + JSON.stringify(response));\n}\n\nreturn [{ json: { image_url: imageUrl, raw_response: response } }];"
       },
-      "id": "parse-fal-response",
+      "id": "f01dc65d-7b05-4318-a22c-336858986c52",
       "name": "Extract Image URL",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [900, 200]
+      "position": [
+        80,
+        528
+      ]
     },
     {
       "parameters": {
@@ -113,11 +73,47 @@
           }
         }
       },
-      "id": "respond-success",
+      "id": "46acda43-9d75-4053-b045-87917403c39a",
       "name": "Respond with Image URL",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1120, 200]
+      "position": [
+        288,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "api-key-check",
+              "leftValue": "={{ $json.headers['x-api-key'] }}",
+              "rightValue": "whisker-2025",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "1e99ca8f-e9cb-4add-8bff-12e2a015b4e7",
+      "name": "Check API Key1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -432,
+        608
+      ]
     },
     {
       "parameters": {
@@ -139,43 +135,52 @@
           }
         }
       },
-      "id": "respond-unauthorized",
-      "name": "Respond Unauthorized",
+      "id": "4cfad97b-4047-4ff3-b186-e2ddda496a2f",
+      "name": "Respond Unauthorized1",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [680, 420]
+      "position": [
+        -144,
+        752
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-image",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": false
+        }
+      },
+      "id": "001a7c3d-e791-4fd1-9f9c-f68e9fb51e56",
+      "name": "Generate Image webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -784,
+        640
+      ],
+      "webhookId": "generate-image-webhook"
+    },
+    {
+      "parameters": {
+        "content": "## Generate image versions and send back\n",
+        "height": 224,
+        "width": 1024,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -160,
+        464
+      ],
+      "typeVersion": 1,
+      "id": "91a275eb-4091-411e-8098-cbc47c35ec41",
+      "name": "Sticky Note3"
     }
   ],
   "connections": {
-    "Webhook Trigger": {
-      "main": [
-        [
-          {
-            "node": "Check API Key",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Check API Key": {
-      "main": [
-        [
-          {
-            "node": "Call fal.ai",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond Unauthorized",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Call fal.ai": {
       "main": [
         [
@@ -197,14 +202,83 @@
           }
         ]
       ]
+    },
+    "Check API Key1": {
+      "main": [
+        [
+          {
+            "node": "Call fal.ai",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Unauthorized1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Image webhook": {
+      "main": [
+        [
+          {
+            "node": "Check API Key1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
-  "settings": {
-    "executionOrder": "v1"
+  "pinData": {
+    "Generate Image webhook": [
+      {
+        "headers": {
+          "host": "n8n.xdo.it.com",
+          "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+          "content-length": "272",
+          "accept": "*/*",
+          "accept-encoding": "gzip, br",
+          "accept-language": "en-US,en;q=0.9",
+          "cdn-loop": "cloudflare; loops=1",
+          "cf-connecting-ip": "154.20.39.7",
+          "cf-ipcountry": "CA",
+          "cf-ray": "9c7c9fc7bb925768-YVR",
+          "cf-visitor": "{\"scheme\":\"https\"}",
+          "content-type": "application/json",
+          "origin": "https://wp-cat-images.vercel.app",
+          "priority": "u=1, i",
+          "referer": "https://wp-cat-images.vercel.app/",
+          "render-proxy-ttl": "4",
+          "rndr-id": "624d120b-0129-4162",
+          "sec-ch-ua": "\"Not(A:Brand\";v=\"8\", \"Chromium\";v=\"144\", \"Google Chrome\";v=\"144\"",
+          "sec-ch-ua-mobile": "?0",
+          "sec-ch-ua-platform": "\"Windows\"",
+          "sec-fetch-dest": "empty",
+          "sec-fetch-mode": "cors",
+          "sec-fetch-site": "cross-site",
+          "true-client-ip": "154.20.39.7",
+          "x-api-key": "whisker-2025",
+          "x-forwarded-for": "154.20.39.7, 162.159.102.75",
+          "x-forwarded-proto": "https",
+          "x-request-start": "1770066090209193"
+        },
+        "params": {},
+        "query": {},
+        "body": {
+          "prompt": "Professional product photography of a burlap sack overflowing with vibrant green organic catnip leaves on pristine white background, studio lighting, sharp focus, 4k, commercial photography, clean shadows, highly detailed texture",
+          "model_id": "fal-ai/fast-sdxl"
+        },
+        "webhookUrl": "https://n8n.xdo.it.com/webhook/generate-image",
+        "executionMode": "production"
+      }
+    ]
   },
-  "staticData": null,
-  "tags": [],
-  "triggerCount": 0,
-  "updatedAt": "2025-01-01T00:00:00.000Z",
-  "versionId": "1"
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "134704a008b9f0bd001266236399dd4abe9224cfe4fc4dac12cec251be634d46"
+  }
 }

@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Whisker & Paws Ad Engine",
+  "version": "1.0.0",
+  "description": "Generate marketing assets for Whisker & Paws pet brand instantly",
+  "permissions": [],
+  "host_permissions": [
+    "https://n8n.xdo.it.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "Whisker & Paws Ad Engine"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Whisker & Paws Ad Engine</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1>Whisker & Paws</h1>
+      <p class="subtitle">Ad Engine</p>
+    </header>
+
+    <div class="input-section">
+      <label for="concept">Your Ad Concept</label>
+      <textarea
+        id="concept"
+        placeholder="e.g., Premium organic cat food that helps cats live longer, healthier lives..."
+        rows="3"
+      ></textarea>
+
+      <label for="model">Image Model</label>
+      <select id="model">
+        <option value="fal-ai/flux/dev">Flux Dev (High Quality)</option>
+        <option value="fal-ai/fast-sdxl">Fast SDXL (Speed)</option>
+        <option value="fal-ai/recraft-v3">Recraft V3 (Vector/Illustration)</option>
+        <option value="fal-ai/nano-banana-pro">Nano Banana Pro (Creative)</option>
+      </select>
+
+      <button id="generateBtn" class="btn-primary">
+        <span class="btn-text">Generate Ads</span>
+        <span class="btn-loading hidden">
+          <span class="spinner"></span>
+          Generating...
+        </span>
+      </button>
+    </div>
+
+    <div id="results" class="results hidden">
+      <h2>Generated Variations</h2>
+      <div id="cards" class="cards"></div>
+    </div>
+
+    <div id="globalError" class="global-error hidden">
+      <p class="error-message"></p>
+      <button class="btn-retry">Retry</button>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

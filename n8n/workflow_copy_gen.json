@@ -1,0 +1,209 @@
+{
+  "name": "Whisker & Paws - Copy Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-copy",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": false
+        }
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "generate-copy-webhook"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "api-key-check",
+              "leftValue": "={{ $json.headers['x-api-key'] }}",
+              "rightValue": "whisker-2025",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-auth",
+      "name": "Check API Key",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "requestDefaults": {},
+        "authentication": "predefinedCredentialType",
+        "resource": "chat",
+        "operation": "message",
+        "model": "claude-3-5-sonnet-20240620",
+        "messages": {
+          "values": [
+            {
+              "content": "={{ $json.body.concept }}"
+            }
+          ]
+        },
+        "options": {
+          "systemMessage": "You are a creative director for a pet brand called \"Whisker & Paws\". Your task is to generate advertising copy for multiple platforms.\n\nIMPORTANT: Return ONLY a valid JSON array with exactly 5 objects. No markdown, no code blocks, no explanation - just the raw JSON array.\n\nEach object must have these exact keys:\n- \"platform\": One of \"Google\", \"Meta\", \"TikTok\", \"Pinterest\", \"YouTube\"\n- \"copy\": The ad text optimized for that platform's style and character limits\n- \"image_prompt\": A detailed visual description for AI image generation. Include style, lighting, composition, and mood. Always feature cats in the imagery.\n\nPlatform guidelines:\n- Google: Concise, benefit-focused, max 90 chars\n- Meta: Engaging, emotional, can be longer with emojis\n- TikTok: Trendy, casual, youth-oriented\n- Pinterest: Aspirational, lifestyle-focused\n- YouTube: Hook-driven, action-oriented\n\nExample format:\n[{\"platform\":\"Google\",\"copy\":\"...\",\"image_prompt\":\"...\"},{\"platform\":\"Meta\",\"copy\":\"...\",\"image_prompt\":\"...\"},...]\n\nGenerate variations for the following concept:",
+          "maxTokens": 2000,
+          "temperature": 0.8
+        }
+      },
+      "id": "anthropic-node",
+      "name": "Generate Copy with Claude",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.2,
+      "position": [680, 200],
+      "credentials": {
+        "anthropicApi": {
+          "id": "ANTHROPIC_CREDENTIAL_ID",
+          "name": "Anthropic API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse the Claude response and extract the JSON array\nconst response = $input.first().json;\n\nlet content = response.message?.content || response.text || response.content || '';\n\n// If content is an array (Anthropic format), extract text\nif (Array.isArray(content)) {\n  content = content.map(c => c.text || c).join('');\n}\n\n// Clean up the response - remove markdown code blocks if present\ncontent = content.toString().trim();\nif (content.startsWith('```json')) {\n  content = content.slice(7);\n}\nif (content.startsWith('```')) {\n  content = content.slice(3);\n}\nif (content.endsWith('```')) {\n  content = content.slice(0, -3);\n}\ncontent = content.trim();\n\n// Find the JSON array in the response\nconst jsonMatch = content.match(/\\[\\s*\\{[\\s\\S]*\\}\\s*\\]/);\nif (!jsonMatch) {\n  throw new Error('Could not find valid JSON array in response');\n}\n\nconst variations = JSON.parse(jsonMatch[0]);\n\n// Validate the structure\nif (!Array.isArray(variations) || variations.length !== 5) {\n  throw new Error('Expected exactly 5 variations');\n}\n\nfor (const v of variations) {\n  if (!v.platform || !v.copy || !v.image_prompt) {\n    throw new Error('Each variation must have platform, copy, and image_prompt');\n  }\n}\n\nreturn [{ json: { variations } }];"
+      },
+      "id": "parse-response",
+      "name": "Parse Claude Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.variations) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, x-api-key"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-success",
+      "name": "Respond with Variations",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"error\": \"Unauthorized\", \"message\": \"Invalid or missing API key\"}",
+        "options": {
+          "responseCode": 401,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-unauthorized",
+      "name": "Respond Unauthorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [680, 420]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Check API Key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check API Key": {
+      "main": [
+        [
+          {
+            "node": "Generate Copy with Claude",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Unauthorized",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Copy with Claude": {
+      "main": [
+        [
+          {
+            "node": "Parse Claude Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Claude Response": {
+      "main": [
+        [
+          {
+            "node": "Respond with Variations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2025-01-01T00:00:00.000Z",
+  "versionId": "1"
+}

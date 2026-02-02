@@ -1,0 +1,558 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "api-key-check",
+              "leftValue": "={{ $json.headers['x-api-key'] }}",
+              "rightValue": "whisker-2025",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "2e3b068e-4422-4750-a18e-f6e08a5066db",
+      "name": "Check API Key",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -432,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse the AI Agent response and extract the JSON array\nconst response = $input.first().json;\n\n// AI Agent node uses 'output' field, but we check others as fallbacks\nlet content = response.output || response.text || response.message?.content || response.content || '';\n\n// If content is an array (Anthropic format), extract text\nif (Array.isArray(content)) {\n  content = content.map(c => c.text || c).join('');\n}\n\n// Convert to string and clean up\ncontent = String(content).trim();\n\n// Remove markdown code blocks if present\nif (content.startsWith('```json')) {\n  content = content.slice(7);\n} else if (content.startsWith('```')) {\n  content = content.slice(3);\n}\nif (content.endsWith('```')) {\n  content = content.slice(0, -3);\n}\ncontent = content.trim();\n\n// If content is empty, throw helpful error\nif (!content) {\n  throw new Error('No content received from AI Agent. Raw response: ' + JSON.stringify(response).slice(0, 500));\n}\n\n// Try to find JSON array in the response\nconst jsonMatch = content.match(/\\[\\s*\\{[\\s\\S]*\\}\\s*\\]/);\nif (!jsonMatch) {\n  // Show first 500 chars of content for debugging\n  throw new Error('Could not find valid JSON array. Content received: ' + content.slice(0, 500));\n}\n\nconst variations = JSON.parse(jsonMatch[0]);\n\n// Validate the structure\nif (!Array.isArray(variations) || variations.length !== 5) {\n  throw new Error('Expected exactly 5 variations, got ' + (Array.isArray(variations) ? variations.length : 'non-array'));\n}\n\nfor (let i = 0; i < variations.length; i++) {\n  const v = variations[i];\n  if (!v.platform || !v.copy || !v.image_prompt) {\n    throw new Error(`Variation ${i + 1} missing required fields. Has: ${Object.keys(v).join(', ')}`);\n  }\n}\n\nreturn [{ json: { variations } }];"
+      },
+      "id": "2206617e-bc44-4be3-80e4-feea9630f851",
+      "name": "Parse Claude Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        368,
+        -208
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.variations) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, x-api-key"
+              }
+            ]
+          }
+        }
+      },
+      "id": "4d118201-1d4c-49be-ab5e-5267dd322de8",
+      "name": "Respond with Variations",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        592,
+        -208
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"error\": \"Unauthorized\", \"message\": \"Invalid or missing API key\"}",
+        "options": {
+          "responseCode": 401,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "ecbf8aba-f423-4fee-a1bd-eea59e9aa66a",
+      "name": "Respond Unauthorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        -64,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a world-class Digital Marketing Creative Director. Your goal is to take a single marketing concept that equals={{ $json.body.concept }} and generate high-performing ad assets for 5 specific platforms.\n\nYou must output your response as a valid, parseable JSON Array of exactly 5 objects. Do not include any conversational text, markdown formatting, or explanations outside the JSON.\n\n### PLATFORM & VISUAL REQUIREMENTS\n\n1. **Google (Display/Discovery)**\n   - **Specs**: Landscape (1200 x 628).\n   - **Copy**: Punchy, high-CTR Headline (max 30 chars) + Description (max 90 chars).\n   - **Image Style**: A clean, professional product shot or high-clarity lifestyle image on a white or neutral background. Avoid clutter. \"Studio lighting\".\n\n2. **Meta (Instagram/Facebook Feed)**\n   - **Specs**: Square (1080 x 1080).\n   - **Copy**: Engaging caption with emojis and a clear hook (max 125 chars).\n   - **Image Style**: High-fidelity \"Lifestyle\" photography. It should look like a high-quality post from a friend or influencer, not a generic ad. \"Native to feed\" aesthetic.\n\n3. **TikTok**\n   - **Specs**: Full Vertical (1080 x 1920).\n   - **Copy**: Short video script hook or overlay text (e.g., \"POV: Your cat sees this...\").\n   - **Image Style**: A dynamic, UGC-style (User Generated Content) snapshot. Needs to feel raw, authentic, and possibly shot on a smartphone. \"Ring light,\" \"iPhone camera\".\n\n4. **Pinterest**\n   - **Specs**: Vertical Pin (1000 x 1500).\n   - **Copy**: Inspirational or \"How-to\" style title.\n   - **Image Style**: Highly aesthetic, soft lighting, interior-design focused. \"Dreamy,\" \"Curated,\" \"Soft focus\".\n\n5. **YouTube**\n   - **Specs**: Widescreen Thumbnail (1280 x 720).\n   - **Copy**: Clickbait-style video title (ALL CAPS allowed for emphasis).\n   - **Image Style**: High-contrast, expressive \"YouTuber Thumbnail\" style. Vibrant colors, expressive subjects, sharp focus, \"4k,\" \"High saturation\".\n\n### IMAGE PROMPT ENGINEERING RULES\nThe \"image_prompt\" field is passed directly to an AI Image Generator (Flux/SD3).\n- **DO NOT** use generic terms like \"picture of a cat.\"\n- **DO** use descriptive lighting/style keywords: \"cinematic lighting,\" \"macro photography,\" \"4k,\" \"highly detailed,\" \"depth of field,\" \"golden hour.\"\n- Ensure the image description aligns perfectly with the ad copy emotion.\n\n### OUTPUT FORMAT\nStrictly follow this JSON structure. Ensure \"width\" and \"height\" are integers.\n\n[\n  {\n    \"platform\": \"Google\",\n    \"copy\": \"string\",\n    \"image_prompt\": \"string\",\n    \"dimensions\": {\n      \"width\": 1200,\n      \"height\": 628\n    }\n  },\n  {\n    \"platform\": \"Meta\",\n    \"copy\": \"string\",\n    \"image_prompt\": \"string\",\n    \"dimensions\": {\n      \"width\": 1080,\n      \"height\": 1080\n    }\n  },\n  {\n    \"platform\": \"TikTok\",\n    \"copy\": \"string\",\n    \"image_prompt\": \"string\",\n    \"dimensions\": {\n      \"width\": 1080,\n      \"height\": 1920\n    }\n  },\n  {\n    \"platform\": \"Pinterest\",\n    \"copy\": \"string\",\n    \"image_prompt\": \"string\",\n    \"dimensions\": {\n      \"width\": 1000,\n      \"height\": 1500\n    }\n  },\n  {\n    \"platform\": \"YouTube\",\n    \"copy\": \"string\",\n    \"image_prompt\": \"string\",\n    \"dimensions\": {\n      \"width\": 1280,\n      \"height\": 720\n    }\n  }\n]",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -80,
+        -208
+      ],
+      "id": "b08c08d5-084b-40ca-ae8a-9825a6c49543",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://fal.run/{{ $json.body.model_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"prompt\": \"{{ $json.body.prompt }}\",\n  \"image_size\": {\n    \"width\": {{ $json.body.width }},\n    \"height\": {{ $json.body.height }}\n  },\n  \"num_inference_steps\": 28,\n  \"guidance_scale\": 3.5,\n  \"num_images\": 1,\n  \"enable_safety_checker\": true\n}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "2e7eab05-be24-4e3b-9e92-707a5782c6c8",
+      "name": "Call fal.ai",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -144,
+        528
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "51vDUFkJLxab3yOz",
+          "name": "Header Fal.ai"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract the image URL from fal.ai response\nconst response = $input.first().json;\n\nlet imageUrl = null;\n\n// fal.ai returns images in different formats depending on the model\n// Common patterns: images[0].url, images[0], output.images[0].url, image.url\nif (response.images && response.images.length > 0) {\n  imageUrl = response.images[0].url || response.images[0];\n} else if (response.output && response.output.images && response.output.images.length > 0) {\n  imageUrl = response.output.images[0].url || response.output.images[0];\n} else if (response.image && response.image.url) {\n  imageUrl = response.image.url;\n} else if (response.image) {\n  imageUrl = response.image;\n} else if (response.url) {\n  imageUrl = response.url;\n}\n\nif (!imageUrl) {\n  throw new Error('Could not extract image URL from fal.ai response: ' + JSON.stringify(response));\n}\n\nreturn [{ json: { image_url: imageUrl, raw_response: response } }];"
+      },
+      "id": "f01dc65d-7b05-4318-a22c-336858986c52",
+      "name": "Extract Image URL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        80,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ image_url: $json.image_url }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, x-api-key"
+              }
+            ]
+          }
+        }
+      },
+      "id": "46acda43-9d75-4053-b045-87917403c39a",
+      "name": "Respond with Image URL",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        288,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "api-key-check",
+              "leftValue": "={{ $json.headers['x-api-key'] }}",
+              "rightValue": "whisker-2025",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "1e99ca8f-e9cb-4add-8bff-12e2a015b4e7",
+      "name": "Check API Key1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -432,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"error\": \"Unauthorized\", \"message\": \"Invalid or missing API key\"}",
+        "options": {
+          "responseCode": 401,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "4cfad97b-4047-4ff3-b186-e2ddda496a2f",
+      "name": "Respond Unauthorized1",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        -144,
+        752
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-copy",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": false
+        }
+      },
+      "id": "72c11011-0777-4d63-b301-1f2908d5efe2",
+      "name": "Generate Copy webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -752,
+        -48
+      ],
+      "webhookId": "generate-copy-webhook"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-image",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": false
+        }
+      },
+      "id": "001a7c3d-e791-4fd1-9f9c-f68e9fb51e56",
+      "name": "Generate Image webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -784,
+        640
+      ],
+      "webhookId": "generate-image-webhook"
+    },
+    {
+      "parameters": {
+        "content": "## receive prompt  from web or plugin \n",
+        "height": 976,
+        "width": 320
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -912,
+        -144
+      ],
+      "typeVersion": 1,
+      "id": "d18e698a-43a3-4c04-9867-e7259ef2ecbd",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Check this is legit\n",
+        "height": 1008,
+        "width": 272
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -544,
+        -144
+      ],
+      "typeVersion": 1,
+      "id": "31571f74-808e-4b31-9256-77b012454df5",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## Generate text versions and send back\n",
+        "height": 448,
+        "width": 1024,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -128,
+        -272
+      ],
+      "typeVersion": 1,
+      "id": "a9a835d6-f87e-46de-a352-182b355e7dbb",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "## Generate image versions and send back\n",
+        "height": 224,
+        "width": 1024,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -160,
+        464
+      ],
+      "typeVersion": 1,
+      "id": "91a275eb-4091-411e-8098-cbc47c35ec41",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "claude-sonnet-4-5-20250929",
+          "cachedResultName": "Claude Sonnet 4.5"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [
+        -80,
+        -16
+      ],
+      "id": "ec1fbbcf-315c-4548-b984-e2397f88782c",
+      "name": "Anthropic Chat Model",
+      "credentials": {
+        "anthropicApi": {
+          "id": "hDtMMqWn4ElxAVSg",
+          "name": "Anthropic account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Check API Key": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Unauthorized",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Claude Response": {
+      "main": [
+        [
+          {
+            "node": "Respond with Variations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Parse Claude Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call fal.ai": {
+      "main": [
+        [
+          {
+            "node": "Extract Image URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Image URL": {
+      "main": [
+        [
+          {
+            "node": "Respond with Image URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check API Key1": {
+      "main": [
+        [
+          {
+            "node": "Call fal.ai",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Unauthorized1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Copy webhook": {
+      "main": [
+        [
+          {
+            "node": "Check API Key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Image webhook": {
+      "main": [
+        [
+          {
+            "node": "Check API Key1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anthropic Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {
+    "Generate Image webhook": [
+      {
+        "headers": {
+          "host": "n8n.xdo.it.com",
+          "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+          "content-length": "272",
+          "accept": "*/*",
+          "accept-encoding": "gzip, br",
+          "accept-language": "en-US,en;q=0.9",
+          "cdn-loop": "cloudflare; loops=1",
+          "cf-connecting-ip": "154.20.39.7",
+          "cf-ipcountry": "CA",
+          "cf-ray": "9c7c9fc7bb925768-YVR",
+          "cf-visitor": "{\"scheme\":\"https\"}",
+          "content-type": "application/json",
+          "origin": "https://wp-cat-images.vercel.app",
+          "priority": "u=1, i",
+          "referer": "https://wp-cat-images.vercel.app/",
+          "render-proxy-ttl": "4",
+          "rndr-id": "624d120b-0129-4162",
+          "sec-ch-ua": "\"Not(A:Brand\";v=\"8\", \"Chromium\";v=\"144\", \"Google Chrome\";v=\"144\"",
+          "sec-ch-ua-mobile": "?0",
+          "sec-ch-ua-platform": "\"Windows\"",
+          "sec-fetch-dest": "empty",
+          "sec-fetch-mode": "cors",
+          "sec-fetch-site": "cross-site",
+          "true-client-ip": "154.20.39.7",
+          "x-api-key": "whisker-2025",
+          "x-forwarded-for": "154.20.39.7, 162.159.102.75",
+          "x-forwarded-proto": "https",
+          "x-request-start": "1770066090209193"
+        },
+        "params": {},
+        "query": {},
+        "body": {
+          "prompt": "Professional product photography of a burlap sack overflowing with vibrant green organic catnip leaves on pristine white background, studio lighting, sharp focus, 4k, commercial photography, clean shadows, highly detailed texture",
+          "model_id": "fal-ai/fast-sdxl"
+        },
+        "webhookUrl": "https://n8n.xdo.it.com/webhook/generate-image",
+        "executionMode": "production"
+      }
+    ]
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "134704a008b9f0bd001266236399dd4abe9224cfe4fc4dac12cec251be634d46"
+  }
+}

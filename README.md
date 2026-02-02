@@ -125,31 +125,7 @@ x-api-key: XXXXXXX
 | `fal-ai/recraft-v3` | Vector/illustration style | Logos, graphics, icons |
 | `fal-ai/nano-banana-pro` | Creative/experimental | Unique artistic styles |
 
-## Configuration Reference
 
-### Environment Variables (n8n)
-
-Set these in your n8n instance:
-
-| Variable | Description | Where to Get |
-|----------|-------------|--------------|
-| `ANTHROPIC_API_KEY` | Anthropic API key | [console.anthropic.com](https://console.anthropic.com/) |
-| `FAL_KEY` | fal.ai API key | [fal.ai/dashboard](https://fal.ai/dashboard) |
-
-### Hardcoded Values to Update
-
-| File | Variable | Default Value |
-|------|----------|---------------|
-| `extension/popup.js` | `CONFIG.N8N_BASE_URL` | `https://n8n.xdo.it.com/webhook` |
-| `extension/popup.js` | `CONFIG.API_KEY` | `whisker-2025` |
-| `web-app/app/page.tsx` | `CONFIG.N8N_BASE_URL` | `https://n8n.xdo.it.com/webhook` |
-| `web-app/app/page.tsx` | `CONFIG.API_KEY` | `whisker-2025` |
-
-## Security
-
-- All requests to n8n require the `XXXX` header
-- The API key is validated in the n8n workflow before processing
-- Unauthorized requests receive a 401 response
 
 ## Troubleshooting
 

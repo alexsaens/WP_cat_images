@@ -507,50 +507,7 @@
       ]
     }
   },
-  "pinData": {
-    "Generate Image webhook": [
-      {
-        "headers": {
-          "host": "n8n.xdo.it.com",
-          "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
-          "content-length": "272",
-          "accept": "*/*",
-          "accept-encoding": "gzip, br",
-          "accept-language": "en-US,en;q=0.9",
-          "cdn-loop": "cloudflare; loops=1",
-          "cf-connecting-ip": "154.20.39.7",
-          "cf-ipcountry": "CA",
-          "cf-ray": "9c7c9fc7bb925768-YVR",
-          "cf-visitor": "{\"scheme\":\"https\"}",
-          "content-type": "application/json",
-          "origin": "https://wp-cat-images.vercel.app",
-          "priority": "u=1, i",
-          "referer": "https://wp-cat-images.vercel.app/",
-          "render-proxy-ttl": "4",
-          "rndr-id": "624d120b-0129-4162",
-          "sec-ch-ua": "\"Not(A:Brand\";v=\"8\", \"Chromium\";v=\"144\", \"Google Chrome\";v=\"144\"",
-          "sec-ch-ua-mobile": "?0",
-          "sec-ch-ua-platform": "\"Windows\"",
-          "sec-fetch-dest": "empty",
-          "sec-fetch-mode": "cors",
-          "sec-fetch-site": "cross-site",
-          "true-client-ip": "154.20.39.7",
-          "x-api-key": "whisker-2025",
-          "x-forwarded-for": "154.20.39.7, 162.159.102.75",
-          "x-forwarded-proto": "https",
-          "x-request-start": "1770066090209193"
-        },
-        "params": {},
-        "query": {},
-        "body": {
-          "prompt": "Professional product photography of a burlap sack overflowing with vibrant green organic catnip leaves on pristine white background, studio lighting, sharp focus, 4k, commercial photography, clean shadows, highly detailed texture",
-          "model_id": "fal-ai/fast-sdxl"
-        },
-        "webhookUrl": "https://n8n.xdo.it.com/webhook/generate-image",
-        "executionMode": "production"
-      }
-    ]
-  },
+  "pinData": {},
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "134704a008b9f0bd001266236399dd4abe9224cfe4fc4dac12cec251be634d46"

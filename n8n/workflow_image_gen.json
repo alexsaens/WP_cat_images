@@ -1,0 +1,210 @@
+{
+  "name": "Whisker & Paws - Image Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-image",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": false
+        }
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "generate-image-webhook"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "api-key-check",
+              "leftValue": "={{ $json.headers['x-api-key'] }}",
+              "rightValue": "whisker-2025",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-auth",
+      "name": "Check API Key",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://fal.run/{{ $json.body.model_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"prompt\": \"{{ $json.body.prompt }}\",\n  \"image_size\": \"landscape_4_3\",\n  \"num_inference_steps\": 28,\n  \"guidance_scale\": 3.5,\n  \"num_images\": 1,\n  \"enable_safety_checker\": true\n}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "fal-request",
+      "name": "Call fal.ai",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 200],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FAL_CREDENTIAL_ID",
+          "name": "fal.ai API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract the image URL from fal.ai response\nconst response = $input.first().json;\n\nlet imageUrl = null;\n\n// fal.ai returns images in different formats depending on the model\n// Common patterns: images[0].url, images[0], output.images[0].url, image.url\nif (response.images && response.images.length > 0) {\n  imageUrl = response.images[0].url || response.images[0];\n} else if (response.output && response.output.images && response.output.images.length > 0) {\n  imageUrl = response.output.images[0].url || response.output.images[0];\n} else if (response.image && response.image.url) {\n  imageUrl = response.image.url;\n} else if (response.image) {\n  imageUrl = response.image;\n} else if (response.url) {\n  imageUrl = response.url;\n}\n\nif (!imageUrl) {\n  throw new Error('Could not extract image URL from fal.ai response: ' + JSON.stringify(response));\n}\n\nreturn [{ json: { image_url: imageUrl, raw_response: response } }];"
+      },
+      "id": "parse-fal-response",
+      "name": "Extract Image URL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ image_url: $json.image_url }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, x-api-key"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-success",
+      "name": "Respond with Image URL",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"error\": \"Unauthorized\", \"message\": \"Invalid or missing API key\"}",
+        "options": {
+          "responseCode": 401,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-unauthorized",
+      "name": "Respond Unauthorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [680, 420]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Check API Key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check API Key": {
+      "main": [
+        [
+          {
+            "node": "Call fal.ai",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Unauthorized",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call fal.ai": {
+      "main": [
+        [
+          {
+            "node": "Extract Image URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Image URL": {
+      "main": [
+        [
+          {
+            "node": "Respond with Image URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2025-01-01T00:00:00.000Z",
+  "versionId": "1"
+}

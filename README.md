@@ -26,73 +26,8 @@ A marketing asset generator that creates multi-platform ad variations using AI. 
    then images load one-by-one
 ```
 
-## Quick Start
 
-### 1. Set Up n8n Workflows
 
-#### Import Workflows
-1. Go to your n8n instance (e.g., `https://n8n.xdo.it.com/`)
-2. Create a new workflow and import `n8n/workflow_copy_gen.json`
-3. Create another workflow and import `n8n/workflow_image_gen.json`
-
-#### Configure Credentials
-
-**Anthropic API Key:**
-1. In n8n, go to **Settings > Credentials**
-2. Create new **Anthropic API** credential
-3. Enter your Anthropic API key
-4. In `workflow_copy_gen.json`, update the credential reference in the "Generate Copy with Claude" node
-
-**fal.ai API Key:**
-1. In n8n, go to **Settings > Credentials**
-2. Create new **Header Auth** credential:
-   - Name: `fal.ai API Key`
-   - Header Name: `Authorization`
-   - Header Value: `Key YOUR_FAL_API_KEY`
-3. In `workflow_image_gen.json`, update the credential reference in the "Call fal.ai" node
-
-#### Activate Workflows
-1. Open each imported workflow
-2. Click **Activate** (toggle in top-right)
-3. Note the webhook URLs shown (should be `/webhook/generate-copy` and `/webhook/generate-image`)
-
-### 2. Configure Frontend URLs
-
-Update the n8n base URL in both frontends if different from the default:
-
-**Chrome Extension:** Edit `extension/popup.js`
-```javascript
-const CONFIG = {
-  N8N_BASE_URL: 'https://your-n8n-instance.com/webhook',  // <-- Update this
-  API_KEY: 'whisker-2025'
-};
-```
-
-**Web App:** Edit `web-app/app/page.tsx`
-```typescript
-const CONFIG = {
-  N8N_BASE_URL: 'https://your-n8n-instance.com/webhook',  // <-- Update this
-  API_KEY: 'whisker-2025',
-};
-```
-
-### 3. Run the Web App
-
-```bash
-cd web-app
-npm install
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000)
-
-### 4. Load the Chrome Extension
-
-1. Open Chrome and go to `chrome://extensions/`
-2. Enable **Developer mode** (top-right toggle)
-3. Click **Load unpacked**
-4. Select the `extension` folder
-5. Click the extension icon in your toolbar
 
 ## Project Structure
 
@@ -129,7 +64,7 @@ Generate 5 ad copy variations for different platforms.
 **Headers:**
 ```
 Content-Type: application/json
-x-api-key: whisker-2025
+x-api-key: XXXXXXXXXXX
 ```
 
 **Request Body:**
@@ -163,7 +98,7 @@ Generate a single image from a prompt.
 **Headers:**
 ```
 Content-Type: application/json
-x-api-key: whisker-2025
+x-api-key: XXXXXXX
 ```
 
 **Request Body:**
@@ -212,14 +147,14 @@ Set these in your n8n instance:
 
 ## Security
 
-- All requests to n8n require the `x-api-key` header
+- All requests to n8n require the `XXXX` header
 - The API key is validated in the n8n workflow before processing
 - Unauthorized requests receive a 401 response
 
 ## Troubleshooting
 
 ### "Unauthorized" error
-- Check that `x-api-key` header is set correctly
+- Check that `XXXXXX` header is set correctly
 - Verify the API key matches in both frontend and n8n workflow
 
 ### Images not generating

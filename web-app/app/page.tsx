@@ -14,10 +14,16 @@ const CONFIG = {
 // ============================================
 // Types
 // ============================================
+interface Dimensions {
+  width: number;
+  height: number;
+}
+
 interface Variation {
   platform: 'Google' | 'Meta' | 'TikTok' | 'Pinterest' | 'YouTube';
   copy: string;
   image_prompt: string;
+  dimensions: Dimensions;
 }
 
 interface CardState {
@@ -40,11 +46,11 @@ const MODEL_OPTIONS = [
 function sanitizeFilename(text: string): string {
   return text
     .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, '') // Remove non-alphanumeric except spaces
-    .replace(/\s+/g, '_')        // Replace spaces with underscores
-    .replace(/_+/g, '_')         // Remove duplicate underscores
-    .replace(/^_|_$/g, '')       // Remove leading/trailing underscores
-    .substring(0, 50);           // Limit length
+    .replace(/[^a-z0-9\s]/g, '')
+    .replace(/\s+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_|_$/g, '')
+    .substring(0, 50);
 }
 
 async function fetchImageAsBlob(url: string): Promise<Blob> {
@@ -53,6 +59,15 @@ async function fetchImageAsBlob(url: string): Promise<Blob> {
     throw new Error('Failed to fetch image');
   }
   return response.blob();
+}
+
+function getAspectRatioClass(dimensions: Dimensions): string {
+  const ratio = dimensions.width / dimensions.height;
+  if (ratio > 1.5) return 'aspect-landscape-wide';
+  if (ratio > 1.1) return 'aspect-landscape';
+  if (ratio > 0.9) return 'aspect-square';
+  if (ratio > 0.6) return 'aspect-portrait';
+  return 'aspect-portrait-tall';
 }
 
 // ============================================
@@ -83,7 +98,12 @@ async function generateCopy(concept: string): Promise<Variation[]> {
   return variations;
 }
 
-async function generateImage(prompt: string, modelId: string): Promise<string> {
+async function generateImage(
+  prompt: string,
+  modelId: string,
+  width: number,
+  height: number
+): Promise<string> {
   const response = await fetch(`${CONFIG.N8N_BASE_URL}/generate-image`, {
     method: 'POST',
     headers: {
@@ -93,6 +113,8 @@ async function generateImage(prompt: string, modelId: string): Promise<string> {
     body: JSON.stringify({
       prompt,
       model_id: modelId,
+      width,
+      height,
     }),
   });
 
@@ -124,13 +146,12 @@ async function downloadSingleCard(
   const platform = variation.platform.toLowerCase();
   const filePrefix = `${baseName}_${platform}`;
 
-  // Create text content
   const textContent = `Platform: ${variation.platform}
+Dimensions: ${variation.dimensions.width}x${variation.dimensions.height}
 Copy: ${variation.copy}
 Image Prompt: ${variation.image_prompt}
 Generated: ${new Date().toISOString()}`;
 
-  // Download text file
   const textBlob = new Blob([textContent], { type: 'text/plain' });
   const textUrl = URL.createObjectURL(textBlob);
   const textLink = document.createElement('a');
@@ -139,7 +160,6 @@ Generated: ${new Date().toISOString()}`;
   textLink.click();
   URL.revokeObjectURL(textUrl);
 
-  // Download image
   try {
     const imageBlob = await fetchImageAsBlob(imageUrl);
     const imageDownloadUrl = URL.createObjectURL(imageBlob);
@@ -150,7 +170,6 @@ Generated: ${new Date().toISOString()}`;
     URL.revokeObjectURL(imageDownloadUrl);
   } catch (err) {
     console.error('Failed to download image:', err);
-    // Fallback: open image in new tab
     window.open(imageUrl, '_blank');
   }
 }
@@ -167,7 +186,6 @@ async function downloadAllAsZip(
     throw new Error('Failed to create ZIP folder');
   }
 
-  // Add each card's assets to the ZIP
   const downloadPromises = cards.map(async (cardState) => {
     const { variation, imageUrl } = cardState;
     if (!imageUrl) return;
@@ -175,14 +193,13 @@ async function downloadAllAsZip(
     const platform = variation.platform.toLowerCase();
     const filePrefix = `${baseName}_${platform}`;
 
-    // Add text file
     const textContent = `Platform: ${variation.platform}
+Dimensions: ${variation.dimensions.width}x${variation.dimensions.height}
 Copy: ${variation.copy}
 Image Prompt: ${variation.image_prompt}
 Generated: ${new Date().toISOString()}`;
     folder.file(`${filePrefix}.txt`, textContent);
 
-    // Add image file
     try {
       const imageBlob = await fetchImageAsBlob(imageUrl);
       folder.file(`${filePrefix}.png`, imageBlob);
@@ -193,7 +210,6 @@ Generated: ${new Date().toISOString()}`;
 
   await Promise.all(downloadPromises);
 
-  // Generate and download the ZIP
   const zipBlob = await zip.generateAsync({ type: 'blob' });
   const zipUrl = URL.createObjectURL(zipBlob);
   const link = document.createElement('a');
@@ -228,6 +244,7 @@ function AdCard({ cardState, index, conceptName, onRetry }: AdCardProps) {
   const { variation, imageUrl, isLoading, error } = cardState;
   const platformLower = variation.platform.toLowerCase();
   const [isDownloading, setIsDownloading] = useState(false);
+  const aspectClass = getAspectRatioClass(variation.dimensions);
 
   const handleDownload = async () => {
     if (!imageUrl) return;
@@ -248,17 +265,22 @@ function AdCard({ cardState, index, conceptName, onRetry }: AdCardProps) {
           <PlatformIcon platform={variation.platform} />
           {variation.platform}
         </span>
-        <span className={`card-status ${imageUrl ? 'success' : error ? 'error' : ''}`}>
-          {isLoading ? 'Rendering image...' : imageUrl ? 'Complete' : error ? 'Failed' : 'Pending'}
-        </span>
+        <div className="card-header-right">
+          <span className="card-dimensions">
+            {variation.dimensions.width}x{variation.dimensions.height}
+          </span>
+          <span className={`card-status ${imageUrl ? 'success' : error ? 'error' : ''}`}>
+            {isLoading ? 'Rendering...' : imageUrl ? 'Complete' : error ? 'Failed' : 'Pending'}
+          </span>
+        </div>
       </div>
       <div className="card-body">
         <p className="card-copy">{variation.copy}</p>
-        <div className="card-image-container">
+        <div className={`card-image-container ${aspectClass}`}>
           {isLoading && (
             <div className="image-loading">
               <div className="image-spinner"></div>
-              <span className="image-loading-text">Generating with AI...</span>
+              <span className="image-loading-text">Generating {variation.dimensions.width}x{variation.dimensions.height}...</span>
             </div>
           )}
           {imageUrl && (
@@ -307,7 +329,6 @@ export default function Home() {
 
   const generateImageForCard = useCallback(
     async (index: number, variation: Variation, selectedModel: string) => {
-      // Set loading state for this card
       setCards((prev) =>
         prev.map((card, i) =>
           i === index ? { ...card, isLoading: true, error: null } : card
@@ -315,7 +336,12 @@ export default function Home() {
       );
 
       try {
-        const imageUrl = await generateImage(variation.image_prompt, selectedModel);
+        const imageUrl = await generateImage(
+          variation.image_prompt,
+          selectedModel,
+          variation.dimensions.width,
+          variation.dimensions.height
+        );
         setCards((prev) =>
           prev.map((card, i) =>
             i === index ? { ...card, imageUrl, isLoading: false } : card
@@ -344,10 +370,8 @@ export default function Home() {
     setCards([]);
 
     try {
-      // Step 1: Generate copy variations
       const variations = await generateCopy(concept);
 
-      // Step 2: Create initial card states (skeleton)
       const initialCards: CardState[] = variations.map((variation) => ({
         variation,
         imageUrl: null,
@@ -356,7 +380,6 @@ export default function Home() {
       }));
       setCards(initialCards);
 
-      // Step 3: Generate images for all cards in parallel
       await Promise.all(
         variations.map((variation, index) =>
           generateImageForCard(index, variation, model)

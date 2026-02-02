@@ -179,6 +179,22 @@ body {
 .platform-badge.pinterest { background: #E60023; }
 .platform-badge.youtube { background: #FF0000; }
 
+.card-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-dimensions {
+  font-size: 10px;
+  color: #888;
+  background: #e0e0e0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+  font-family: monospace;
+}
+
 .card-status {
   font-size: 11px;
   color: #888;
@@ -202,6 +218,27 @@ body {
   background: #f0f0f0;
   border-radius: 8px;
   overflow: hidden;
+}
+
+/* Dynamic aspect ratios based on platform specs */
+.card-image-container.aspect-landscape-wide {
+  aspect-ratio: 16/9;
+}
+
+.card-image-container.aspect-landscape {
+  aspect-ratio: 1200/628;
+}
+
+.card-image-container.aspect-square {
+  aspect-ratio: 1/1;
+}
+
+.card-image-container.aspect-portrait {
+  aspect-ratio: 2/3;
+}
+
+.card-image-container.aspect-portrait-tall {
+  aspect-ratio: 9/16;
 }
 
 .card-image {

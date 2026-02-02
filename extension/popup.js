@@ -64,6 +64,16 @@ async function fetchImageAsBlob(url) {
   return response.blob();
 }
 
+function getAspectRatioClass(dimensions) {
+  if (!dimensions) return '';
+  const ratio = dimensions.width / dimensions.height;
+  if (ratio > 1.5) return 'aspect-landscape-wide';
+  if (ratio > 1.1) return 'aspect-landscape';
+  if (ratio > 0.9) return 'aspect-square';
+  if (ratio > 0.6) return 'aspect-portrait';
+  return 'aspect-portrait-tall';
+}
+
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -123,7 +133,11 @@ async function downloadSingleCard(index) {
   const filePrefix = `${baseName}_${platform}`;
 
   // Create and download text file
+  const dimensionsText = variation.dimensions
+    ? `${variation.dimensions.width}x${variation.dimensions.height}`
+    : 'N/A';
   const textContent = `Platform: ${variation.platform}
+Dimensions: ${dimensionsText}
 Copy: ${variation.copy}
 Image Prompt: ${variation.image_prompt}
 Generated: ${new Date().toISOString()}`;
@@ -262,7 +276,7 @@ async function generateCopy(concept) {
   return variations;
 }
 
-async function generateImage(prompt, modelId) {
+async function generateImage(prompt, modelId, width, height) {
   const response = await fetch(`${CONFIG.N8N_BASE_URL}/generate-image`, {
     method: 'POST',
     headers: {
@@ -271,7 +285,9 @@ async function generateImage(prompt, modelId) {
     },
     body: JSON.stringify({
       prompt,
-      model_id: modelId
+      model_id: modelId,
+      width,
+      height
     })
   });
 
@@ -308,6 +324,10 @@ function createCard(variation, index) {
   card.id = `card-${index}`;
 
   const platformLower = variation.platform.toLowerCase();
+  const aspectClass = getAspectRatioClass(variation.dimensions);
+  const dimensionsText = variation.dimensions
+    ? `${variation.dimensions.width}x${variation.dimensions.height}`
+    : '';
 
   card.innerHTML = `
     <div class="card-header">
@@ -315,14 +335,17 @@ function createCard(variation, index) {
         ${platformIcons[variation.platform] || variation.platform[0]}
         ${variation.platform}
       </span>
-      <span class="card-status" id="status-${index}">Rendering image...</span>
+      <div class="card-header-right">
+        ${dimensionsText ? `<span class="card-dimensions">${dimensionsText}</span>` : ''}
+        <span class="card-status" id="status-${index}">Rendering image...</span>
+      </div>
     </div>
     <div class="card-body">
       <p class="card-copy">${escapeHtml(variation.copy)}</p>
-      <div class="card-image-container" id="image-container-${index}">
+      <div class="card-image-container ${aspectClass}" id="image-container-${index}">
         <div class="image-loading">
           <div class="image-spinner"></div>
-          <span class="image-loading-text">Generating with AI...</span>
+          <span class="image-loading-text">Generating ${dimensionsText}...</span>
         </div>
       </div>
       <div class="prompt-preview">
@@ -343,7 +366,9 @@ async function generateImageForCard(variation, index) {
   const downloadBtn = document.getElementById(`download-btn-${index}`);
 
   try {
-    const imageUrl = await generateImage(variation.image_prompt, currentModel);
+    const width = variation.dimensions?.width || 1024;
+    const height = variation.dimensions?.height || 1024;
+    const imageUrl = await generateImage(variation.image_prompt, currentModel, width, height);
 
     // Store the image URL
     currentImageUrls[index] = imageUrl;

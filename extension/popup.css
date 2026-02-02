@@ -126,10 +126,18 @@ body {
   margin-top: 20px;
 }
 
+.results-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  gap: 12px;
+}
+
 .results h2 {
   color: white;
   font-size: 16px;
-  margin-bottom: 12px;
+  margin: 0;
 }
 
 .cards {
@@ -171,6 +179,22 @@ body {
 .platform-badge.pinterest { background: #E60023; }
 .platform-badge.youtube { background: #FF0000; }
 
+.card-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-dimensions {
+  font-size: 10px;
+  color: #888;
+  background: #e0e0e0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+  font-family: monospace;
+}
+
 .card-status {
   font-size: 11px;
   color: #888;
@@ -194,6 +218,27 @@ body {
   background: #f0f0f0;
   border-radius: 8px;
   overflow: hidden;
+}
+
+/* Dynamic aspect ratios based on platform specs */
+.card-image-container.aspect-landscape-wide {
+  aspect-ratio: 16/9;
+}
+
+.card-image-container.aspect-landscape {
+  aspect-ratio: 1200/628;
+}
+
+.card-image-container.aspect-square {
+  aspect-ratio: 1/1;
+}
+
+.card-image-container.aspect-portrait {
+  aspect-ratio: 2/3;
+}
+
+.card-image-container.aspect-portrait-tall {
+  aspect-ratio: 9/16;
 }
 
 .card-image {
@@ -293,4 +338,51 @@ body {
 
 .prompt-preview strong {
   color: #333;
+}
+
+/* Download Buttons */
+.btn-download {
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btn-download:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.btn-download:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.btn-download-all {
+  padding: 8px 16px;
+  background: white;
+  color: #667eea;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.btn-download-all:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.btn-download-all:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }

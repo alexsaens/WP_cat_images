@@ -126,10 +126,18 @@ body {
   margin-top: 20px;
 }
 
+.results-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  gap: 12px;
+}
+
 .results h2 {
   color: white;
   font-size: 16px;
-  margin-bottom: 12px;
+  margin: 0;
 }
 
 .cards {
@@ -293,4 +301,51 @@ body {
 
 .prompt-preview strong {
   color: #333;
+}
+
+/* Download Buttons */
+.btn-download {
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btn-download:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.btn-download:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.btn-download-all {
+  padding: 8px 16px;
+  background: white;
+  color: #667eea;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.btn-download-all:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.btn-download-all:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }

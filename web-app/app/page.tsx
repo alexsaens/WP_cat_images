@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import JSZip from 'jszip';
 
 // ============================================
 // Configuration - UPDATE THESE VALUES
@@ -32,6 +33,27 @@ const MODEL_OPTIONS = [
   { value: 'fal-ai/recraft-v3', label: 'Recraft V3 (Vector/Illustration)' },
   { value: 'fal-ai/nano-banana-pro', label: 'Nano Banana Pro (Creative)' },
 ];
+
+// ============================================
+// Utility Functions
+// ============================================
+function sanitizeFilename(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '') // Remove non-alphanumeric except spaces
+    .replace(/\s+/g, '_')        // Replace spaces with underscores
+    .replace(/_+/g, '_')         // Remove duplicate underscores
+    .replace(/^_|_$/g, '')       // Remove leading/trailing underscores
+    .substring(0, 50);           // Limit length
+}
+
+async function fetchImageAsBlob(url: string): Promise<Blob> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error('Failed to fetch image');
+  }
+  return response.blob();
+}
 
 // ============================================
 // API Functions
@@ -89,6 +111,99 @@ async function generateImage(prompt: string, modelId: string): Promise<string> {
 }
 
 // ============================================
+// Download Functions
+// ============================================
+async function downloadSingleCard(
+  cardState: CardState,
+  conceptName: string
+): Promise<void> {
+  const { variation, imageUrl } = cardState;
+  if (!imageUrl) return;
+
+  const baseName = sanitizeFilename(conceptName);
+  const platform = variation.platform.toLowerCase();
+  const filePrefix = `${baseName}_${platform}`;
+
+  // Create text content
+  const textContent = `Platform: ${variation.platform}
+Copy: ${variation.copy}
+Image Prompt: ${variation.image_prompt}
+Generated: ${new Date().toISOString()}`;
+
+  // Download text file
+  const textBlob = new Blob([textContent], { type: 'text/plain' });
+  const textUrl = URL.createObjectURL(textBlob);
+  const textLink = document.createElement('a');
+  textLink.href = textUrl;
+  textLink.download = `${filePrefix}.txt`;
+  textLink.click();
+  URL.revokeObjectURL(textUrl);
+
+  // Download image
+  try {
+    const imageBlob = await fetchImageAsBlob(imageUrl);
+    const imageDownloadUrl = URL.createObjectURL(imageBlob);
+    const imageLink = document.createElement('a');
+    imageLink.href = imageDownloadUrl;
+    imageLink.download = `${filePrefix}.png`;
+    imageLink.click();
+    URL.revokeObjectURL(imageDownloadUrl);
+  } catch (err) {
+    console.error('Failed to download image:', err);
+    // Fallback: open image in new tab
+    window.open(imageUrl, '_blank');
+  }
+}
+
+async function downloadAllAsZip(
+  cards: CardState[],
+  conceptName: string
+): Promise<void> {
+  const zip = new JSZip();
+  const baseName = sanitizeFilename(conceptName);
+  const folder = zip.folder(baseName);
+
+  if (!folder) {
+    throw new Error('Failed to create ZIP folder');
+  }
+
+  // Add each card's assets to the ZIP
+  const downloadPromises = cards.map(async (cardState) => {
+    const { variation, imageUrl } = cardState;
+    if (!imageUrl) return;
+
+    const platform = variation.platform.toLowerCase();
+    const filePrefix = `${baseName}_${platform}`;
+
+    // Add text file
+    const textContent = `Platform: ${variation.platform}
+Copy: ${variation.copy}
+Image Prompt: ${variation.image_prompt}
+Generated: ${new Date().toISOString()}`;
+    folder.file(`${filePrefix}.txt`, textContent);
+
+    // Add image file
+    try {
+      const imageBlob = await fetchImageAsBlob(imageUrl);
+      folder.file(`${filePrefix}.png`, imageBlob);
+    } catch (err) {
+      console.error(`Failed to fetch image for ${platform}:`, err);
+    }
+  });
+
+  await Promise.all(downloadPromises);
+
+  // Generate and download the ZIP
+  const zipBlob = await zip.generateAsync({ type: 'blob' });
+  const zipUrl = URL.createObjectURL(zipBlob);
+  const link = document.createElement('a');
+  link.href = zipUrl;
+  link.download = `${baseName}_ads.zip`;
+  link.click();
+  URL.revokeObjectURL(zipUrl);
+}
+
+// ============================================
 // Components
 // ============================================
 function PlatformIcon({ platform }: { platform: string }) {
@@ -105,12 +220,26 @@ function PlatformIcon({ platform }: { platform: string }) {
 interface AdCardProps {
   cardState: CardState;
   index: number;
+  conceptName: string;
   onRetry: (index: number) => void;
 }
 
-function AdCard({ cardState, index, onRetry }: AdCardProps) {
+function AdCard({ cardState, index, conceptName, onRetry }: AdCardProps) {
   const { variation, imageUrl, isLoading, error } = cardState;
   const platformLower = variation.platform.toLowerCase();
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handleDownload = async () => {
+    if (!imageUrl) return;
+    setIsDownloading(true);
+    try {
+      await downloadSingleCard(cardState, conceptName);
+    } catch (err) {
+      console.error('Download failed:', err);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   return (
     <div className="card">
@@ -151,6 +280,15 @@ function AdCard({ cardState, index, onRetry }: AdCardProps) {
         <div className="prompt-preview">
           <strong>Prompt:</strong> {variation.image_prompt}
         </div>
+        {imageUrl && (
+          <button
+            className="btn-download"
+            onClick={handleDownload}
+            disabled={isDownloading}
+          >
+            {isDownloading ? 'Downloading...' : 'Download'}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -163,6 +301,7 @@ export default function Home() {
   const [concept, setConcept] = useState('');
   const [model, setModel] = useState(MODEL_OPTIONS[0].value);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isDownloadingAll, setIsDownloadingAll] = useState(false);
   const [cards, setCards] = useState<CardState[]>([]);
   const [globalError, setGlobalError] = useState<string | null>(null);
 
@@ -238,6 +377,24 @@ export default function Home() {
     }
   };
 
+  const handleDownloadAll = async () => {
+    const completedCards = cards.filter((card) => card.imageUrl);
+    if (completedCards.length === 0) return;
+
+    setIsDownloadingAll(true);
+    try {
+      await downloadAllAsZip(completedCards, concept);
+    } catch (err) {
+      console.error('Download all failed:', err);
+      setGlobalError('Failed to download ZIP file');
+    } finally {
+      setIsDownloadingAll(false);
+    }
+  };
+
+  const completedCount = cards.filter((card) => card.imageUrl).length;
+  const hasCompletedCards = completedCount > 0;
+
   return (
     <div className="container">
       <header className="header">
@@ -300,13 +457,27 @@ export default function Home() {
 
       {cards.length > 0 && (
         <div className="results">
-          <h2>Generated Variations</h2>
+          <div className="results-header">
+            <h2>Generated Variations</h2>
+            {hasCompletedCards && (
+              <button
+                className="btn-download-all"
+                onClick={handleDownloadAll}
+                disabled={isDownloadingAll}
+              >
+                {isDownloadingAll
+                  ? 'Creating ZIP...'
+                  : `Download All (${completedCount})`}
+              </button>
+            )}
+          </div>
           <div className="cards-grid">
             {cards.map((cardState, index) => (
               <AdCard
                 key={index}
                 cardState={cardState}
                 index={index}
+                conceptName={concept}
                 onRetry={handleRetry}
               />
             ))}

@@ -171,10 +171,19 @@ body {
   }
 }
 
+.results-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
 .results h2 {
   color: white;
   font-size: 24px;
-  margin-bottom: 24px;
+  margin: 0;
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
@@ -331,6 +340,53 @@ body {
 
 .btn-retry:hover {
   background: var(--primary-dark);
+}
+
+/* Download Buttons */
+.btn-download {
+  width: 100%;
+  margin-top: 12px;
+  padding: 12px 20px;
+  background: var(--primary-gradient);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btn-download:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.btn-download:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.btn-download-all {
+  padding: 12px 24px;
+  background: white;
+  color: var(--primary-color);
+  border: 2px solid white;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-download-all:hover:not(:disabled) {
+  background: transparent;
+  color: white;
+}
+
+.btn-download-all:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .prompt-preview {
